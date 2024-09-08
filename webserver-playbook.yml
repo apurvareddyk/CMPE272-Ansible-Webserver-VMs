@@ -1,0 +1,45 @@
+---
+- hosts: webservers
+  become: true
+  tasks:
+    - name: Install Apache
+      apt:
+        name: apache2
+        state: present
+        update_cache: yes
+
+    - name: Ensure Apache is running and enabled
+      service:
+        name: apache2
+        state: started
+        enabled: true
+
+    - name: Deploy custom HTML page
+      copy:
+        content: |
+          <html>
+          <body>
+            <h1>Hello World from SJSU-{{ (inventory_hostname == 'vm1') | ternary('1', '2') }} - Apurva</h1>
+          </body>
+          </html>
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Open port 8080 for Apache
+      lineinfile:
+        path: /etc/apache2/ports.conf
+        line: "Listen 8080"
+        create: yes
+
+    - name: Update VirtualHost to listen on port 8080
+      lineinfile:
+        path: /etc/apache2/sites-enabled/000-default.conf
+        regexp: '^(.*<VirtualHost .*>)'
+        line: "<VirtualHost *:8080>"
+
+    - name: Restart Apache to apply changes
+      service:
+        name: apache2
+        state: restarted
